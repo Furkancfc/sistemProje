@@ -13,7 +13,7 @@ public class Server1 extends IServer {
             Thread clientListener = new Thread(new Listener());
             clientListener.start();
             // Connection accepted and creating handler for each client on server side
-            // Thread dbTemp = new Thread(new DBTemp(PORT));
+            Thread dbTemp = new Thread(new DBTemp(PORT));
             while (true) {
                 try {
                     if (database == null) {
@@ -22,7 +22,7 @@ public class Server1 extends IServer {
                         }
                         System.out.println("Current table : " + database.subscriberTable.toString());
                         System.err.println("database timestamp : " + Date.from(Instant.ofEpochMilli(database.lastUpdate)));
-                        // dbTemp.start();
+                        dbTemp.start();
                     }
                     if (!connectionQueue.isEmpty()) {
                         Thread clientThread = null;
