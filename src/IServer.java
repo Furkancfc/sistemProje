@@ -9,6 +9,7 @@ public abstract class IServer {
 	static volatile Socket incomingConnection = null;
 	static volatile Queue<Socket> connectionQueue = null;
 	static volatile Database database = null;
+	static volatile Connection dbConnection = null;
 
 	static int[] ports = { 5001, 5002, 5003, 5004 };
 
@@ -193,14 +194,13 @@ public abstract class IServer {
 		static ObjectOutputStream foos = null;
 		static File file = null;
 		static int port = 0;
-		static volatile Connection connection = null;
 
 		public DBTemp(int PORT) throws Exception {
 			this.port = PORT;
-			// connection =
+			// dbConnection =
 			// DriverManager.getConnection(String.format("jdbc:mysql://localhost:3306/server%s",
 			// port), "root","_toor123");
-			connection = DriverManager.getConnection(String.format("jdbc:sqlite:/home/furkan/Databases/SQLite_databases/db%s.db", port));
+			dbConnection = DriverManager.getConnection(String.format("jdbc:sqlite:/home/furkan/Databases/SQLite_databases/db%s.db", port));
 
 			createTable();
 		}
@@ -230,7 +230,7 @@ public abstract class IServer {
 		}
 
 		public static void createTable() throws Exception {
-			Statement stmt = connection.createStatement();
+			Statement stmt = dbConnection.createStatement();
 			stmt.execute("create table if not exists TableTracker (tablename varchar(20),submail varchar(20),operation varchar(20), tcreatTime bigint,tlastUpdate bigint, primary key (tablename));");
 			long createTime = Instant.now().toEpochMilli();
 			stmt.execute(String.format("insert or ignore into TableTracker values ('SubTable',null,null,\'%s\',\'%s\')", createTime, createTime));
@@ -250,8 +250,8 @@ public abstract class IServer {
 																	// updated rest of tables
 			Subscriber sub = (Subscriber) record;
 			Session session = record.session;
-			Statement stmt = connection.createStatement();
-			try (PreparedStatement prs = connection.prepareStatement("select SubTable.*,SessionTable.screatTime,SessionTable.slastUpdate,SessionTable.isActive,RecordTable.rcreatTime,RecordTable.rlastUpdate,RecordTable.isOnline  from SubTable left join SessionTable on SubTable.submail=SessionTable.submail left join RecordTable on SubTable.submail = RecordTable.submail where SubTable.submail=(?);"
+			Statement stmt = dbConnection.createStatement();
+			try (PreparedStatement prs = dbConnection.prepareStatement("select SubTable.*,SessionTable.screatTime,SessionTable.slastUpdate,SessionTable.isActive,RecordTable.rcreatTime,RecordTable.rlastUpdate,RecordTable.isOnline  from SubTable left join SessionTable on SubTable.submail=SessionTable.submail left join RecordTable on SubTable.submail = RecordTable.submail where SubTable.submail=(?);"
 			/*
 			 * "select * from SubTable natural join SessionTable natural join RecordTable;"
 			 */)) {
@@ -265,7 +265,7 @@ public abstract class IServer {
 						System.out.println("User already inserted");
 						return;
 					}
-					try (PreparedStatement prs1 = connection.prepareStatement("insert into SubTable values ( (?),(?),(?),(?) )")) {
+					try (PreparedStatement prs1 = dbConnection.prepareStatement("insert into SubTable values ( (?),(?),(?),(?) )")) {
 						prs1.setString(1, sub.getMail());
 						prs1.setString(2, sub.getName());
 						prs1.setString(3, sub.getSurname());
@@ -274,7 +274,7 @@ public abstract class IServer {
 					} catch (Exception e) {
 						System.err.println(e.getMessage());
 					}
-					try (PreparedStatement prs1 = connection.prepareStatement("insert into SessionTable (submail,session,screatTime,slastUpdate) values ((?),(?),(?),(?))")) {
+					try (PreparedStatement prs1 = dbConnection.prepareStatement("insert into SessionTable (submail,session,screatTime,slastUpdate) values ((?),(?),(?),(?))")) {
 						prs1.setString(1, record.getMail());
 						prs1.setString(2, record.session.email);
 						prs1.setString(3, Instant.ofEpochMilli(session.createTime).toString());
@@ -283,7 +283,7 @@ public abstract class IServer {
 					} catch (SQLException e) {
 						System.out.println(e.getMessage());
 					}
-					try (PreparedStatement prs1 = connection.prepareStatement("insert into RecordTable values ((?),(?),(?),(?))")) {
+					try (PreparedStatement prs1 = dbConnection.prepareStatement("insert into RecordTable values ((?),(?),(?),(?))")) {
 						prs1.setString(1, record.getMail());
 						prs1.setString(2, Instant.ofEpochMilli(record.createTime).toString());
 						prs1.setString(3, Instant.ofEpochMilli(record.lastUpdate).toString());
@@ -313,7 +313,7 @@ public abstract class IServer {
 						return;
 					}
 					if (ch.operation instanceof Database.Record) {
-						try (PreparedStatement prs1 = connection.prepareStatement("update SubTable set subname=(?), subsurname=(?), subpaswd=(?) where submail=(?)")) {
+						try (PreparedStatement prs1 = dbConnection.prepareStatement("update SubTable set subname=(?), subsurname=(?), subpaswd=(?) where submail=(?)")) {
 							prs1.setString(1, sub.getName());
 							prs1.setString(2, sub.getSurname());
 							prs1.setString(3, sub.getPassword());
@@ -321,7 +321,7 @@ public abstract class IServer {
 							prs1.executeUpdate();
 
 						}
-						try (PreparedStatement prs1 = connection.prepareStatement("update SessionTable set session=(?), screatTime=(?), slastUpdate=(?) where submail=(?)")) {
+						try (PreparedStatement prs1 = dbConnection.prepareStatement("update SessionTable set session=(?), screatTime=(?), slastUpdate=(?) where submail=(?)")) {
 							prs1.setString(1, session.email);
 							prs1.setString(2, Instant.ofEpochMilli(session.createTime).toString());
 							prs1.setString(3, Instant.ofEpochMilli(session.lastlogin).toString());
@@ -329,7 +329,7 @@ public abstract class IServer {
 							prs1.executeUpdate();
 
 						}
-						try (PreparedStatement prs1 = connection.prepareStatement("update RecordTable set rcreatTime=(?), rlastUpdate=(?), isOnline=(?) where submail=(?)")) {
+						try (PreparedStatement prs1 = dbConnection.prepareStatement("update RecordTable set rcreatTime=(?), rlastUpdate=(?), isOnline=(?) where submail=(?)")) {
 							prs1.setString(1, (Instant.ofEpochMilli(record.createTime)).toString());
 							prs1.setString(2, Instant.ofEpochMilli(record.lastUpdate).toString());
 							prs1.setString(3, String.valueOf(record.isOnline));
@@ -338,7 +338,7 @@ public abstract class IServer {
 
 						}
 					} else if (ch.operation instanceof Session) {
-						try (PreparedStatement prs1 = connection.prepareStatement("update SessionTable set session=(?), screatTime=(?), slastUpdate=(?) where submail=(?)")) {
+						try (PreparedStatement prs1 = dbConnection.prepareStatement("update SessionTable set session=(?), screatTime=(?), slastUpdate=(?) where submail=(?)")) {
 							prs1.setString(1, record.session.email);
 							prs1.setString(2, Instant.ofEpochMilli((session.createTime)).toString());
 							prs1.setString(3, Instant.ofEpochMilli(session.lastlogin).toString());
@@ -346,7 +346,7 @@ public abstract class IServer {
 							prs1.executeUpdate();
 
 						}
-						try (PreparedStatement prs1 = connection.prepareStatement("update RecordTable set rcreatTime=(?), rlastUpdate=(?), isOnline=(?) where submail=(?)")) {
+						try (PreparedStatement prs1 = dbConnection.prepareStatement("update RecordTable set rcreatTime=(?), rlastUpdate=(?), isOnline=(?) where submail=(?)")) {
 							prs1.setString(1, Instant.ofEpochMilli(record.createTime).toString());
 							prs1.setString(2, Instant.ofEpochMilli(record.lastUpdate).toString());
 							prs1.setString(3, String.valueOf(record.isOnline));
@@ -355,7 +355,7 @@ public abstract class IServer {
 
 						}
 					} else if (ch.operation instanceof Subscriber) {
-						try (PreparedStatement prs1 = connection.prepareStatement("update SubTable set subname=(?), subsurname=(?), subpaswd=(?) where submail=(?)")) {
+						try (PreparedStatement prs1 = dbConnection.prepareStatement("update SubTable set subname=(?), subsurname=(?), subpaswd=(?) where submail=(?)")) {
 							prs1.setString(1, sub.getName());
 							prs1.setString(2, sub.getSurname());
 							prs1.setString(3, sub.getPassword());
@@ -363,7 +363,7 @@ public abstract class IServer {
 							prs1.executeUpdate();
 
 						}
-						try (PreparedStatement prs1 = connection.prepareStatement("update RecordTable set rcreatTime=(?), rlastUpdate=(?), isOnline=(?) where submail=(?)")) {
+						try (PreparedStatement prs1 = dbConnection.prepareStatement("update RecordTable set rcreatTime=(?), rlastUpdate=(?), isOnline=(?) where submail=(?)")) {
 							prs1.setString(1, Instant.ofEpochMilli(record.createTime).toString());
 							prs1.setString(2, Instant.ofEpochMilli(record.lastUpdate).toString());
 							prs1.setString(3, String.valueOf(record.isOnline));
@@ -392,19 +392,19 @@ public abstract class IServer {
 						System.out.println("User not exists");
 						return;
 					}
-					try (PreparedStatement prs1 = connection.prepareStatement("delete from RecordTable where submail=(?)")) {
+					try (PreparedStatement prs1 = dbConnection.prepareStatement("delete from RecordTable where submail=(?)")) {
 						prs1.setString(1, record.getMail());
 						prs1.executeUpdate();
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
-					try (PreparedStatement prs1 = connection.prepareStatement("delete from SessionTable where submail=(?)")) {
+					try (PreparedStatement prs1 = dbConnection.prepareStatement("delete from SessionTable where submail=(?)")) {
 						prs1.setString(1, record.getMail());
 						prs1.executeUpdate();
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
-					try (PreparedStatement prs1 = connection.prepareStatement("delete from SubTable where submail=(?)")) {
+					try (PreparedStatement prs1 = dbConnection.prepareStatement("delete from SubTable where submail=(?)")) {
 						prs1.setString(1, record.getMail());
 						prs1.executeUpdate();
 					} catch (Exception e) {
@@ -446,21 +446,21 @@ public abstract class IServer {
 				while (true) {
 					Database.Record record = subs.get((String) i.next());
 					if (record != null) {
-						try (PreparedStatement prs = connection.prepareStatement("insert into RecordTable ((?),(?),(?),(?))")) {
+						try (PreparedStatement prs = dbConnection.prepareStatement("insert into RecordTable ((?),(?),(?),(?))")) {
 							prs.setString(1, record.getMail());
 							prs.setString(2, Instant.ofEpochMilli(record.createTime).toString());
 							prs.setString(3, Instant.ofEpochMilli(record.lastUpdate).toString());
 							prs.setString(4, String.valueOf(record.isOnline));
 						}
 					} else if (record.getMail() != null) {
-						try (PreparedStatement prs = connection.prepareStatement("insert into SubTable values ((?),(?),(?),(?))")) {
+						try (PreparedStatement prs = dbConnection.prepareStatement("insert into SubTable values ((?),(?),(?),(?))")) {
 							prs.setString(1, record.getMail());
 							prs.setString(2, record.getName());
 							prs.setString(3, record.getSurname());
 							prs.setString(4, record.getPassword());
 						}
 					} else if (record.session.email != null) {
-						try (PreparedStatement prs = connection.prepareStatement("insert into SessionTable values ((?),(?),(?),(?))")) {
+						try (PreparedStatement prs = dbConnection.prepareStatement("insert into SessionTable values ((?),(?),(?),(?))")) {
 							prs.setString(1, record.getMail());
 							prs.setString(2, record.session.email);
 							prs.setString(3, Instant.ofEpochMilli(record.session.createTime).toString());
@@ -478,14 +478,14 @@ public abstract class IServer {
 		public static Database getLocalTemp() {
 			try {
 
-				Statement stmt = connection.createStatement();
+				Statement stmt = dbConnection.createStatement();
 				Database db = new Database(port);
 				db.change = null;
 				db.createTime = 0;
 				db.lastUpdate = 0;
 				Database.Record record = null;
 				ResultSet rs = stmt.executeQuery("select *,concat(SubTable.submail) as smail from SubTable full join SessionTable full join RecordTable");
-				Statement stmt2 = connection.createStatement();
+				Statement stmt2 = dbConnection.createStatement();
 				ResultSet rs2 = stmt2.executeQuery("select * from TableTracker where tablename='RecordTable'");
 				while (true) {
 					db.createTime = rs2.getLong("tcreatTime");
@@ -558,7 +558,8 @@ public abstract class IServer {
 		Database localdb = null;
 		Database externaldb = null;
 		Database temp = null;
-		localdb = DBTemp.getLocalTemp();
+		if (dbConnection != null)
+			localdb = DBTemp.getLocalTemp();
 		externaldb = getExternalTemp(PORT);
 		if (localdb != null) {
 			if (externaldb != null) {

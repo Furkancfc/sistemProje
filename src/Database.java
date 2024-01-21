@@ -135,6 +135,8 @@ public class Database implements Serializable {
 	public Change setChange(Change ch) {
 		this.change = ch;
 		this.lastUpdate = Instant.now().toEpochMilli();
+		if(changeLog.size() > 10);
+			changeLog.clear();
 		return changeLog.push(ch);
 	}
 
