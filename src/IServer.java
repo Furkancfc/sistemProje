@@ -475,27 +475,6 @@ public abstract class IServer {
 			}
 		}
 
-		public static Database getExternalTemp(int PORT) throws Exception {
-			Database temp = null;
-			for (int i : ports) {
-				if (i != PORT) {
-					Object recv = bringObject(new ProtocolMessage("SERILESTIRILMIS_NESNE pulldb"), i);
-					if (recv instanceof Database) {
-						if ((database = (Database) recv) != null) {
-							if (temp == null)
-								temp = database;
-							if (temp != null && database != null && temp.lastUpdate < database.lastUpdate)
-								temp = database;
-							;
-						} else {
-
-						}
-					}
-				}
-			}
-			return temp;
-		}
-
 		public static Database getLocalTemp() {
 			try {
 
@@ -552,37 +531,53 @@ public abstract class IServer {
 				return null;
 			}
 		}
+	}
 
-		public static Database syncDB(int PORT) throws Exception {
-			Database localdb = null;
-			Database externaldb = null;
-			Database temp = null;
-			localdb = getLocalTemp();
-			externaldb = getExternalTemp(PORT);
-			if (localdb != null) {
-				if (externaldb != null) {
-					if (localdb.lastUpdate < externaldb.lastUpdate) {
-						externaldb.subscriberTable.putAll((Map<String, Database.Record>) localdb.subscriberTable);
-						temp = externaldb;
-					} else { // TODO: make difference with actual database and database that in ram
-						localdb.subscriberTable.putAll((Map<String, Database.Record>) externaldb.subscriberTable);
-						temp = localdb;
-						for (int i : ports) {
-							if (i != port) {
-								sendObject(temp, i, new ProtocolMessage("SERILESTIRILMIS_NESNE post null"));
-							}
-						}
+	public static Database getExternalTemp(int PORT) throws Exception {
+		Database temp = null;
+		for (int i : ports) {
+			if (i != PORT) {
+				Object recv = bringObject(new ProtocolMessage("SERILESTIRILMIS_NESNE pulldb"), i);
+				if (recv instanceof Database) {
+					if ((database = (Database) recv) != null) {
+						if (temp == null)
+							temp = database;
+						if (temp != null && database != null && temp.lastUpdate < database.lastUpdate)
+							temp = database;
+						;
+					} else {
+
 					}
-				} else
-					temp = localdb;
-			} else if (externaldb != null) {
-				temp = externaldb;
-			} else {
-				temp = null;
+				}
 			}
-			return temp;
 		}
+		return temp;
+	}
 
+	public static Database syncDB(int PORT) throws Exception {
+		Database localdb = null;
+		Database externaldb = null;
+		Database temp = null;
+		localdb = DBTemp.getLocalTemp();
+		externaldb = getExternalTemp(PORT);
+		if (localdb != null) {
+			if (externaldb != null) {
+				if (localdb.lastUpdate < externaldb.lastUpdate) {
+					externaldb.subscriberTable.putAll((Map<String, Database.Record>) localdb.subscriberTable);
+					temp = externaldb;
+				} else { // TODO: make difference with actual database and database that in ram
+					localdb.subscriberTable.putAll((Map<String, Database.Record>) externaldb.subscriberTable);
+					temp = localdb;
+				}
+			} else
+				temp = localdb;
+		} else if (externaldb != null) {
+			temp = externaldb;
+		} else {
+			temp = null;
+		}
+		new Thread(new Dispatcher(temp, PORT, new ProtocolMessage("SERILESTIRILMIS_NESNE post null"))).start();
+		return temp;
 	}
 
 	public static class Dispatcher implements Runnable {
@@ -590,9 +585,9 @@ public abstract class IServer {
 		int port;
 		ProtocolMessage message = null;
 
-		public Dispatcher(Object obj, int port, ProtocolMessage message) {
+		public Dispatcher(Object obj, int excludePort, ProtocolMessage message) {
 			this.obj = obj;
-			this.port = port;
+			this.port = excludePort;
 			this.message = message;
 		}
 

@@ -22,7 +22,7 @@ public class Server2 extends IServer {
 
 			while (true) {
 				if (database == null) {
-					if ((database = DBTemp.syncDB(PORT)) == null) {
+					if ((database = syncDB(PORT)) == null) {
 						database = new Database(PORT);
 					}
 					System.out.println("Current table : " + database.subscriberTable.toString());

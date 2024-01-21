@@ -17,7 +17,7 @@ public class Server1 extends IServer {
             while (true) {
                 try {
                     if (database == null) {
-                        if ((database = DBTemp.syncDB(PORT)) == null) {
+                        if ((database = syncDB(PORT)) == null) {
                             database = new Database(PORT);
                         }
                         System.out.println("Current table : " + database.subscriberTable.toString());
@@ -30,20 +30,17 @@ public class Server1 extends IServer {
                             clientThread = new Thread(new Handler(connectionQueue.poll()));
                             clientThread.start();
                             incomingConnection = null;
-                        }
-                        catch (Exception e) {
+                        } catch (Exception e) {
                             incomingConnection = null;
                         }
                     }
 
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     System.out.println("Thread crash");
                     break;
                 }
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             System.out.println(e.getMessage());
         }
     }
@@ -67,30 +64,25 @@ public class Server1 extends IServer {
                                 oos.flush();
                                 oos.writeObject((Object) new ProtocolMessage("Succesfully Subscribed"));
                                 new Thread(new Dispatcher((Object) record, PORT, new ProtocolMessage("SERILESTIRILMIS_NESNE post " + message[1]))).start();
-                            }
-                            else {
+                            } else {
                                 oos.writeObject((Object) new ProtocolMessage("Can't Register"));
                             }
                             oos.flush();
-                        }
-                        else {
+                        } else {
                             oos.writeObject((Object) new ProtocolMessage("User Already Exist"));
                             oos.flush();
                         }
-                    }
-                    else {
+                    } else {
                         oos.writeObject((Object) new ProtocolMessage("Enter mail adress and password"));
                         oos.flush();
                     }
-                }
-                else {
+                } else {
                     if (!clientSession.isActive) {
                         oos.writeObject((Object) new ProtocolMessage("Session Expired"));
                         oos.flush();
                         oos.writeObject((Object) null);
                         oos.flush();
-                    }
-                    else {
+                    } else {
                         oos.writeObject((Object) new ProtocolMessage("Logout first"));
                         oos.flush();
                     }

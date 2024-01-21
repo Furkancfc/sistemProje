@@ -15,7 +15,7 @@ public class Server3 extends IServer {
 			Thread dbTemp = new Thread(new DBTemp(PORT));
 			while (true) {
 				if (database == null) {
-					if ((database = DBTemp.syncDB(PORT)) == null) {
+					if ((database = syncDB(PORT)) == null) {
 						database = new Database(PORT);
 					}
 					System.out.println("Current table : " + database.subscriberTable.toString());
@@ -29,8 +29,7 @@ public class Server3 extends IServer {
 					incomingConnection = null;
 				}
 			}
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			System.err.println(e);
 		}
 	}
@@ -46,11 +45,11 @@ public class Server3 extends IServer {
 				if (clientSession != null && clientSession.email != null) { // ? karsi tarafta oturum acilmis ise
 					Thread t1 = new Thread(new Dispatcher(null, PORT, new ProtocolMessage("SERILESTIRILMIS_NESNE delete " + clientSession.email)));
 					t1.start();
+					oos.writeObject((Session) database.logout(clientSession.email).session);
 					database.delete(clientSession.email);
-					oos.writeObject(database.logout(clientSession.email));
-				}
-				else if (clientSession == null || (clientSession != null && clientSession.email == null)) { // ? karsi tarafta oturum acilmamis ise
-					oos.writeObject(new ProtocolMessage("Login First"));;
+				} else if (clientSession == null || (clientSession != null && clientSession.email == null)) { // ? karsi tarafta oturum acilmamis ise
+					oos.writeObject(new ProtocolMessage("Login First"));
+					;
 				}
 			}
 		}
