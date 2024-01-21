@@ -1,15 +1,32 @@
 
 import java.io.*;
 import java.net.*;
+import java.time.Instant;
+import java.util.*;
 
 public class ServerDB extends IServer {
 	public static final int PORT = 5004;
 
+	// private static class Synchroniser implements Runnable{
+	// 	public Synchroniser(){
+
+	// 	}
+	// 	public void run(){
+	// 		while(true){
+				
+	// 		}
+			
+	// 		return;
+	// 	}
+	// }
 	public static void main(String[] args) {
 		try {
 			serverSock = new ServerSocket(PORT);
+			connectionQueue = new LinkedList<Socket>();
 			Thread listenThread = new Thread(new Listener());
 			listenThread.start();
+			// Thread synchronizer = new Thread(new Synchroniser());
+			// synchronizer.start();
 
 			Thread dbTemp = new Thread(new DBTemp(PORT));
 			while (true) {
@@ -18,6 +35,7 @@ public class ServerDB extends IServer {
 						database = new Database(PORT);
 					}
 					System.out.println("Current table : " + database.subscriberTable.toString());
+					System.err.println("database timestamp : " + Date.from(Instant.ofEpochMilli(database.lastUpdate)));
 					dbTemp.start();
 				}
 				if (incomingConnection != null) {
@@ -39,8 +57,7 @@ public class ServerDB extends IServer {
 		}
 
 		@Override
-		public void asupClients(String[] message) throws Exception {
-		}
+		public void asupClients(String[] message) throws Exception {}
 
 	}
 }

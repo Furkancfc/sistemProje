@@ -1,6 +1,7 @@
 import java.net.*;
 import java.sql.*;
-import java.util.*;
+import java.time.Instant;
+import java.util.LinkedList;
 
 public class Server1 extends IServer {
     static final public int PORT = 5001;
@@ -8,7 +9,7 @@ public class Server1 extends IServer {
     public static void main(String args[]) {
         try {
             serverSock = new ServerSocket(PORT);
-            
+            connectionQueue = new LinkedList<Socket>();
             Thread clientListener = new Thread(new Listener());
             clientListener.start();
             // Connection accepted and creating handler for each client on server side
@@ -20,12 +21,13 @@ public class Server1 extends IServer {
                             database = new Database(PORT);
                         }
                         System.out.println("Current table : " + database.subscriberTable.toString());
+                        System.err.println("database timestamp : " + Date.from(Instant.ofEpochMilli(database.lastUpdate)));
                         dbTemp.start();
                     }
-                    if (incomingConnection != null) {
+                    if (!connectionQueue.isEmpty()) {
                         Thread clientThread = null;
                         try {
-                            clientThread = new Thread(new Handler(incomingConnection));
+                            clientThread = new Thread(new Handler(connectionQueue.poll()));
                             clientThread.start();
                             incomingConnection = null;
                         }
@@ -37,17 +39,14 @@ public class Server1 extends IServer {
                 }
                 catch (Exception e) {
                     System.out.println("Thread crash");
-                    // System.err.println(e);
-                    // e.printStackTrace();
+                    break;
                 }
             }
         }
         catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
-
-    // TODO: diger server'lardaki guncel verileri cek.
 
     static class Handler extends IServer.Handler {
         public Handler(Socket client) throws Exception {
@@ -63,12 +62,11 @@ public class Server1 extends IServer {
                             Subscriber sub = new Subscriber(message[1], message[2]);
                             Database.Record record = null;
                             if ((record = database.insert(message[1], sub)) != null) {
-                                clientSession = sub.session;
+                                clientSession = record.session;
                                 oos.writeObject((Object) clientSession);
                                 oos.flush();
                                 oos.writeObject((Object) new ProtocolMessage("Succesfully Subscribed"));
-                                new Thread(new Dispatcher((Object) record, PORT,
-                                        new ProtocolMessage("SERILESTIRILMIS_NESNE post " + message[1]))).start();
+                                new Thread(new Dispatcher((Object) record, PORT, new ProtocolMessage("SERILESTIRILMIS_NESNE post " + message[1]))).start();
                             }
                             else {
                                 oos.writeObject((Object) new ProtocolMessage("Can't Register"));

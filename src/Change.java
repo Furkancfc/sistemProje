@@ -2,22 +2,19 @@ import java.io.*;
 import java.time.*;
 
 public class Change implements Serializable {
-	Object chcontent;
-	long chtime;
-	Object chlocation;
+	Object content; // id of change
+	Object operation;	// what changed
+	long timestamp;
 
-	public Change(Object content, Object location) {
-		this.chcontent = content;
-		this.chtime = Instant.now().toEpochMilli();
-		this.chlocation = location;
+	public Change(Object content, Object operation) {
+		this.content = content;
+		this.operation = operation;
+		this.timestamp = Instant.now().toEpochMilli();
 	}
 
-	public Change(Object content, long chtime, Object location) {
-		this.chcontent = content;
-		this.chtime = chtime;
-		this.chlocation = location;
-		if (content == null || chtime == 0 || location == null) {
-			return;
-		}
+	public Change(Object content, Object operation, long timestamp) {
+		this.content = content;
+		this.timestamp = timestamp;
+		this.operation = operation;
 	}
 }

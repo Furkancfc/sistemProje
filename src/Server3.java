@@ -1,4 +1,6 @@
 import java.net.*;
+import java.time.Instant;
+import java.util.*;
 
 public class Server3 extends IServer {
 	public static int PORT = 5003;
@@ -6,7 +8,7 @@ public class Server3 extends IServer {
 	public static void main(String[] args) {
 		try {
 			serverSock = new ServerSocket(PORT);
-
+			connectionQueue = new LinkedList<Socket>();
 			Thread listenThread = new Thread(new Listener());
 			listenThread.start();
 
@@ -17,6 +19,8 @@ public class Server3 extends IServer {
 						database = new Database(PORT);
 					}
 					System.out.println("Current table : " + database.subscriberTable.toString());
+					System.err.println("database timestamp : " + Date.from(Instant.ofEpochMilli(database.lastUpdate)));
+
 					dbTemp.start();
 				}
 				if (incomingConnection != null) {
@@ -39,14 +43,14 @@ public class Server3 extends IServer {
 		@Override
 		public void asupClients(String[] message) throws Exception {
 			if (message[0].contentEquals("ABONIPTAL")) {
-				if (clientSession != null && clientSession.email != null) { //? karsi tarafta oturum acilmis ise
-					new Dispatcher(null, PORT,
-							new ProtocolMessage("SERILESTIRILMIS_NESNE delete " + clientSession.email));
+				if (clientSession != null && clientSession.email != null) { // ? karsi tarafta oturum acilmis ise
+					Thread t1 = new Thread(new Dispatcher(null, PORT, new ProtocolMessage("SERILESTIRILMIS_NESNE delete " + clientSession.email)));
+					t1.start();
 					database.delete(clientSession.email);
-					database.logout(clientSession.email);
+					oos.writeObject(database.logout(clientSession.email));
 				}
-				else if (clientSession == null || (clientSession != null && clientSession.email == null)) { //? karsi tarafta oturum acilmamis ise
-					oos.writeObject(new ProtocolMessage("Login First"));
+				else if (clientSession == null || (clientSession != null && clientSession.email == null)) { // ? karsi tarafta oturum acilmamis ise
+					oos.writeObject(new ProtocolMessage("Login First"));;
 				}
 			}
 		}

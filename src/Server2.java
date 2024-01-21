@@ -1,4 +1,6 @@
 import java.net.*;
+import java.time.Instant;
+import java.util.*;
 
 public class Server2 extends IServer {
 
@@ -11,6 +13,7 @@ public class Server2 extends IServer {
 	public static void main(String args[]) {
 		try {
 			serverSock = new ServerSocket(PORT);
+			connectionQueue = new LinkedList<Socket>();
 
 			Thread clientListener = new Thread(new Listener());
 			clientListener.start();
@@ -23,6 +26,8 @@ public class Server2 extends IServer {
 						database = new Database(PORT);
 					}
 					System.out.println("Current table : " + database.subscriberTable.toString());
+					System.err.println("database timestamp : " + Date.from(Instant.ofEpochMilli(database.lastUpdate)));
+
 					dbTemp.start();
 				}
 				if (incomingConnection != null) {
@@ -51,31 +56,29 @@ public class Server2 extends IServer {
 						if ((record = database.subscriberTable.get(message[1])) != null) { // ? Database'de kullanici var ise
 							if (record.session != null && record.session.email != null) { // ? Database'deki kullanicinin
 								// oturumu var ise
-								if (clientSession != null && record.session.email.contentEquals(clientSession.email)) { // ?  kullanicinin oturumu,  giris yapmayi denedigi hesap ile ayni mi
+								if (clientSession != null && record.session.email.contentEquals(clientSession.email)) { // ? kullanicinin oturumu, giris yapmayi denedigi hesap ile ayni mi
 									if ((record = database.login(message[1], message[2])) != null) {
 										clientSession = record.session;
+										oos.writeObject((Object) new ProtocolMessage("55 TAMM"));
+										oos.flush();
 										oos.writeObject((Object) new ProtocolMessage("Logged in succesfully"));
 										oos.flush();
 										oos.writeObject((Object) clientSession);
 										oos.flush();
-										new Thread(new Dispatcher((Object) record, PORT,
-												new ProtocolMessage("SERILESTIRILMIS_NESNE post " + record.getMail())))
-														.start();
+										new Thread(new Dispatcher((Object) record, PORT, new ProtocolMessage("SERILESTIRILMIS_NESNE post " + record.getMail()))).start();
 									}
 									else {
 										oos.writeObject(new ProtocolMessage("Wrong password"));
 									}
 								}
 								else { // ? kullanici mevcut oturumdan baska hesaba girmeye calisiyorsa
-									if ((record = database.login(message[1], message[2])) != null) { // ?  basarili giris deniyorsa
+									if ((record = database.login(message[1], message[2])) != null) { // ? basarili giris deniyorsa
 										clientSession = record.session;
 										oos.writeObject((Object) new ProtocolMessage("Logged in succesfully"));
 										oos.flush();
 										oos.writeObject((Object) clientSession);
 										oos.flush();
-										new Thread(new Dispatcher((Object) record, PORT,
-												new ProtocolMessage("SERILESTIRILMIS_NESNE post " + record.getMail())))
-														.start();
+										new Thread(new Dispatcher((Object) record, PORT, new ProtocolMessage("SERILESTIRILMIS_NESNE post " + record.getMail()))).start();
 									}
 									else { // ? giris basarisiz ise
 										oos.writeObject((Object) new ProtocolMessage("Wrong password"));
@@ -90,9 +93,7 @@ public class Server2 extends IServer {
 									// ? kullanicinin oturumu yenilenir
 									oos.writeObject((Object) clientSession);
 									oos.flush();
-									new Thread(new Dispatcher((Object) record, PORT,
-											new ProtocolMessage("SERILESTIRILMIS_NESNE post " + record.getMail())))
-													.start();
+									new Thread(new Dispatcher((Object) record, PORT, new ProtocolMessage("SERILESTIRILMIS_NESNE post " + record.getMail()))).start();
 
 								}
 								else {
@@ -101,13 +102,12 @@ public class Server2 extends IServer {
 								}
 							}
 						}
-						else { //? database'den kullanici bulunamadi ise
+						else { // ? database'den kullanici bulunamadi ise
 							oos.writeObject(new ProtocolMessage("User not found"));
 							oos.flush();
 						}
 					}
 					else { // ? baglanan kullanicinin oturumu var ise
-							// TODO: oturumun suresi dolup dolmadiginin kontrolu yapilacak
 						oos.writeObject(new ProtocolMessage("Already logged in"));
 						oos.flush();
 					}
@@ -125,8 +125,7 @@ public class Server2 extends IServer {
 						oos.flush();
 						oos.writeObject((Object) clientSession);
 						oos.flush();
-						new Thread(new Dispatcher((Object) record, PORT,
-								new ProtocolMessage("SERILESTIRILMIS_NESNE post " + record.getMail()))).start();
+						new Thread(new Dispatcher((Object) record, PORT, new ProtocolMessage("SERILESTIRILMIS_NESNE post " + record.getMail()))).start();
 
 					}
 					else {
